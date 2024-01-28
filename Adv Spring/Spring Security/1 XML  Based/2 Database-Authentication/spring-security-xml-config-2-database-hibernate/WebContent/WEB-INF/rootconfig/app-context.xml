@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd 
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+
+	<context:annotation-config />
+
+	<bean id="userDao" class="com.pratap.dao.UserDaoImpl">
+
+	</bean>
+
+	<bean id="userDetailService"
+		class="com.pratap.service.UserDetailServiceImpl" />
+
+
+	<bean id="dataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName"
+			value="oracle.jdbc.driver.OracleDriver" />
+		<property name="url"
+			value="jdbc:oracle:thin:@localhost:1521:orcl" />
+		<property name="username" value="system" />
+		<property name="password" value="pratap" />
+	</bean>
+
+	<bean id="lsfb"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+		<property name="hibernateProperties">
+			<value>
+				dialect=org.hibernate.dialect.Oracle12cDialect
+				show_sql=true
+				hbm2ddl.auto=create
+			</value>
+		</property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.pratap.model</value>
+			</list>
+		</property>
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+
+</beans>

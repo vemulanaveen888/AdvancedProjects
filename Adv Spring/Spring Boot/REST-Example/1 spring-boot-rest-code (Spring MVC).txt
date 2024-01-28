@@ -1,0 +1,1312 @@
+RESTFul Service Using Spring MVC
+
+--------------------
+Sample RestTemplate uses
+--------------------
+
+@SpringBootApplication
+public class SpringMvcRestTemplateApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringMvcRestTemplateApplication.class, args);
+
+		// curl http://localhost:8080/books/1449374646
+	}
+
+	@Bean
+	RestTemplate restTemplate() {
+		return new RestTemplate();
+	}
+
+}
+
+@RestController
+class ISBNRestController {
+
+	private RestTemplate restTemplate;
+
+	public ISBNRestController(RestTemplate restTemplate) {
+		this.restTemplate = restTemplate;
+	}
+
+	@GetMapping("/books/{isbn}")
+	public String lookupByIsbn(@PathVariable("isbn") String isbn) {
+		ResponseEntity<String> exchange = this.restTemplate.exchange(
+				"https://www.googleapis.com/books/v1/volumes?q=isbn;" + isbn, HttpMethod.GET, null, String.class);
+		String body = exchange.getBody();
+		return body;
+	}
+}
+
+
+
+
+
+------------------------
+Step - 0 Initializing a restfull service project with spring boot
+------------------------
+	new > spring boot starter project
+		groupid : com.pratap
+		artifactid : rest-webservices
+
+		Dependencies : web , devtools , jpa , h2
+
+
+
+------------------------
+Step - 0 Understanding the restful services we would create in this	
+------------------------
+
+Solcial Media Application Resource Mappings
+
+User -> Posts
+
+Retrieve all Users	- GET	/users
+Create a User		- POST	/users
+Retrieve one User	- GET	/users/{id} -> /users/1
+Delete a User		- DELETE /users{id} -> /users/1
+
+Retrieve all post for a user	-GET /users/{id}/posts
+Create a posts for a User	-POST /users/{id}/posts
+Retrieve details of a post	-GET  /users/{id}/posts/{post_id}
+
+
+
+------------------------
+Step - 1 Creating a Hello World Service
+------------------------
+// Controller
+@RestController
+public class HelloWorldController {
+	// GET
+	// uri -	/hello-world
+	// method -	helloWorld
+	
+	//@RequestMapping(method= RequestMethod.GET, path="/hello-world")
+	@GetMapping(path="/hello-world")
+	public String helloWorld() {
+		return "Hello World";
+	}
+}
+
+------------------------
+Step - 2 Enhancing the Hello World Service to return a Bean
+------------------------
+
+public class HelloWorldBean {
+	private String message;
+
+	// Constructor
+	// setter & getter
+	// toString
+}
+
+@RestController
+public class HelloWorldController {
+	@GetMapping(path="/hello-world")
+	public String helloWorld() {
+		return "Hello World";
+	}
+	
+	@GetMapping(path="/hello-world-bean")
+	public HelloWorldBean helloWorldBean() {
+		return new HelloWorldBean("Hello World");
+	}
+}
+
+logging.level.org.springframework = debug
+
+---------------------
+Step - 3 Enhancing the Hello World Service with a Path Variable
+---------------------
+
+@GetMapping(path="/hello-world-bean/path-variable/{name}")
+public HelloWorldBean helloWorldPathVariable(@PathVariable("name") String name) {
+	return new HelloWorldBean(String.format("Hello World , %s",name));
+}
+
+
+----------------------
+Step - 4 Creating User Bean and User Service
+----------------------
+
+Here we will use a static ArrayList.
+
+public class User {
+	private Integer id;
+	private String name;
+	private Date birthDate;
+	public User() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public User(Integer id, String name, Date birthDate) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.birthDate = birthDate;
+	}
+	public Integer getId() {
+		return id;
+	}
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public Date getBirthDate() {
+		return birthDate;
+	}
+	public void setBirthDate(Date birthDate) {
+		this.birthDate = birthDate;
+	}	
+}
+
+
+@Repository
+public class UserDaoImpl {
+	private static List<User> users = new ArrayList<>();
+	private static int usersCounts = 3;
+	static {
+		users.add(new User(1, "jack", new Date()));
+		users.add(new User(2, "jimi", new Date()));
+		users.add(new User(3, "jones", new Date()));
+	}
+	public List<User> findAll() {
+		return users;
+	}
+	public User save(User user) {
+		if (user.getId() == null) {
+			user.setId(++usersCounts);
+		}
+		users.add(user);
+		return user;
+	}
+	public User findOne(int id) {
+		for (User user : users) {
+			if (user.getId() == id) {
+				return user;
+			}
+		}
+		return null;
+	}
+}
+
+
+-------------------------------
+Step - 5 Implementing GET method for User Resource 
+-------------------------------
+
+@RestController
+public class UserResource {
+	@Autowired
+	UserDaoImpl userdao;
+
+	@GetMapping("/users")
+	public List<User> retrieveAllUsers(){
+		return userdao.findAll();
+	}
+	@GetMapping("/users/{id}")
+	public User retrieveUser(@PathVariable int id) {
+		return userdao.findOne(id);
+	}	
+}
+
+-------------------------------
+Step - 6 Implementing POST method to create User Resource 
+-------------------------------
+
+//input : details of the user
+@PostMapping("/users")
+public void createUser(@RequestBody User user) {
+	userdao.save(user);
+}
+
+
+
+
+-------------------------------
+Step - 6 Implementing POST method to create User Resource  
+		and return the created User 
+-------------------------------
+@PostMapping("/users")
+public User createUser(@RequestBody User user) {
+	User savedUser = userdao.save(user);
+	return savedUser;
+}
+
+-------------------------------
+Step - 6 Implementing POST method to create User Resource  
+		and return the created User with Created status ( 201 )
+-------------------------------
+Look into : 
+	HttpEntity
+		RequestEntity
+		ResponseEntity
+
+
+//output : status CREATED & return the created URI
+
+@PostMapping("/users")
+public ResponseEntity createUser(@RequestBody User user) {
+	User savedUser = userdao.save(user);
+	return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+	
+}
+
+-------------------------------
+Step - 7 Enhancing POST method to return correct Http Status code and Location
+-------------------------------
+
+@PostMapping("/users")
+public ResponseEntity<Object> createUserWithCreateStatusAndLocation(@RequestBody User user) {
+	User savedUser = userdao.save(user);
+	URI uri = ServletUriComponentsBuilder.fromCurrentRequest()
+				.path("/{id}")
+				.buildAndExpand(savedUser.getId())
+				.toUri();
+	return ResponseEntity.created(uri).build();		
+}
+
+
+
+-------------------------------
+Step - 8 Implementing Exception Handling - 404 Resource Not found
+-------------------------------
+
+
+Scenario : A GET request to a non-existing user
+http://localhost:8080/users/100
+
+
+//Edit UserResource 
+@GetMapping("/users/{id}")
+public User retrieveUser(@PathVariable int id) {
+	 User user = userdao.findOne(id);
+	 if(user == null)
+		 throw new UserNotFoundException("Id - 	"+id);
+	 
+	 return user;
+}
+
+public class UserNotFoundException extends RuntimeException {
+	public UserNotFoundException(String message) {
+		super(message);
+	}
+}
+
+
+Note : Add the @ResponseStauts(HttpStatus.NOT_FOUND) on the UserNotFoundException  class to return 404 response status
+
+
+-------------------------------
+Step - 9 Implementing Generic Exception Handling for all Resources
+-------------------------------
+
+package com.pratap.exception;
+
+import java.util.Date;
+
+public class ExceptionResponse {
+	private Date timestamp;
+	private String message;
+	private String details;
+
+	public ExceptionResponse(Date timestamp, String message, String details) {
+		super();
+		this.timestamp = timestamp;
+		this.message = message;
+		this.details = details;
+	}
+	// getter & setter
+}
+
+
+@ControllerAdvice
+public class CustomizedResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(Exception.class)
+	public final ResponseEntity<Object> handleAllException(Exception ex, WebRequest request) throws Exception {
+		ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), ex.getMessage() , request.getDescription(false));
+		
+		return new ResponseEntity<>(exceptionResponse , HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+	@ExceptionHandler(UserNotFoundException.class)
+	public final ResponseEntity<Object> handleUserNotFoundException(Exception ex, WebRequest request) throws Exception {
+		ExceptionResponse exceptionResponse = new ExceptionResponse(new Date(), ex.getMessage() , request.getDescription(false));
+		
+		return new ResponseEntity<>(exceptionResponse , HttpStatus.NOT_FOUND);
+	}	
+}
+
+
+-------------------------------
+Exercise : User Post Resource and Exception Handling
+-------------------------------
+
+Solcial Media Application Resource Mappings
+
+User -> Posts
+
+Retrieve all Users	- GET	/users
+Create a User		- POST	/users
+Retrieve one User	- GET	/users/{id} -> /users/1
+Delete a User		- DELETE /users{id} -> /users/1
+
+Assignment:
+	Retrieve all post for a user	-GET /users/{id}/posts
+	Create a posts for a User	-POST /users/{id}/posts
+	Retrieve details of a post	-GET  /users/{id}/posts/{post_id}
+
+
+-------------------------------
+Step - 11 Implementing DELETE Method to delete a User Resource
+-------------------------------
+
+Edit UserDaoImpl.java
+public User deleteById(int id) {
+	Iterator<User> iterator = users.iterator();
+	while(iterator.hasNext()) {
+		User user = iterator.next();
+		if( user.getId() == id) {
+			iterator.remove();
+			return user;
+		}
+	}
+	return null;
+}
+
+Edit UserResource.java
+@DeleteMapping("/users/{id}")
+public void deleteUser(@PathVariable int id) { //WE ARE PLANING TO RETURN 200 OK STATUS ON SUCCESSFUL DELETE
+	 User user = userdao.deleteById(id);
+	 if(user == null)
+		 throw new UserNotFoundException("Id - 	"+id);
+}
+Note : we can consider the using ResponseEntity as the returntype with noContent returned
+
+
+
+
+Break
+
+-------------------------------
+Step - 12 Implementing Validation for Restful services
+-------------------------------
+
+Enabling Validation on createUser(User ) method to verify the incoming user input is valid
+We will use java bean validation Api for this
+
+javax.validation API
+	Implementation of Bean Validation API are
+		- Hibernate Validator
+		- Apache Bean validation
+
+
+@PostMapping("/users")
+public ResponseEntity<Object> createUserWithCreateStatusAndLocation(@Valid @RequestBody User user) {...}
+
+Note : We have added @Valid annoation on the method parameter
+
+Now Lets add validation Constraints in the User Bean class
+
+public class User {
+	private Integer id;
+	
+	@Size(min=2 )
+	private String name;
+	
+	@Past
+	private Date birthDate;
+
+}
+
+- try to post a User with invlaid input , it results a 400 bad request, which is not a helpfull message
+
+To better customize the return message , override handleMethodArgumentNotValid() method of the ResponseEntityExceptionHandler
+
+@Override
+protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+		HttpHeaders headers, HttpStatus status, WebRequest request) {
+	ExceptionResponse exceptionResponse = 
+		new ExceptionResponse(new Date(), "Invalid input, check the given input" 
+				,ex.getBindingResult().toString());
+		
+	return new ResponseEntity<>(exceptionResponse , HttpStatus.BAD_REQUEST);
+}
+
+
+
+Quick Tip : HATEOAS Recent Changes VERSION UPDATES FOR NEXT LECTURE
+
+There are a few modifications of HATEOAS in the latest release of Spring HATEOAS 1.0.0:
+
+One of these should work
+
+Option 1 : Spring Boot Release >= 2.2.0
+---------------------------------------
+import org.springframework.hateoas.EntityModel;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
+
+EntityModel<User> model = new EntityModel<>(user);
+WebMvcLinkBuilder linkTo = linkTo(methodOn(this.getClass()).retrieveAllUsers());
+model.add(linkTo.withRel("all-users"));
+
+Option 2: Older versions
+------------------------
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
+import org.springframework.hateoas.Resource;
+import org.springframework.hateoas.mvc.ControllerLinkBuilder;
+ 
+Resource<User> resource = new Resource<User>(user);
+ControllerLinkBuilder linkTo = linkTo(methodOn(this.getClass()).retrieveAllUsers());
+resource.add(linkTo.withRel("all-users"));
+return resource;
+
+-------------------------------
+Step - 13 Implementing HATEOAS for RESTful services
+-------------------------------
+HATEOAS : Hypermedia as The Engine of Application state
+
+Add the following dependencies
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-hateoas</artifactId>
+</dependency>
+
+@GetMapping("/users/{id}")
+public Resource<User> retrieveUser(@PathVariable int id) {
+	 User user = userdao.findOne(id);
+	 if(user == null)
+		 throw new UserNotFoundException("Id - 	"+id);
+		 
+	 // HATEOAS
+	 // "all-users", 	SERVER_PATH+ " /users"
+	 // retrieveAllUsers
+		 
+	 Resource<User> resource = new Resource<User>(user);
+		 
+	 ControllerLinkBuilder linkTo = ControllerLinkBuilder.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
+	 resource.add(linkTo.withRel("all-users"));
+	 return resource;
+}
+
+*******************************
+Advanced RESTful Service Features
+	-Internationalization
+	-content negotiation
+	-Versioning
+	-Filtering
+	-Documenting web service ( using swagger )
+	-Monitoring
+*******************************
+-------------------------------
+Step - 14 Internationalization for RESTful services
+-------------------------------
+
+
+Note : for easy implementation , lets back to the HelloWorldController 
+
+Edit HelloWorldController.java
+
+@GetMapping(path="/hello-world-internationalized")
+public String helloWorldInternationalized() {
+	return "Good Morning";
+}
+
+
+#####Configuration
+- LocaleResolver
+	- Default Locale - Locale.US
+
+# 1 - Configure LocaleResolver
+	- Edit Main Applicaiton class
+
+@Bean
+public LocaleResolver localeResolver() {
+	SessionLocaleResolver localeResolver  = new SessionLocaleResolver();
+	localeResolver.setDefaultLocale(Locale.US);
+	return localeResolver;
+}
+
+
+#2  -create the properties file ( messages.properties , messages_fr.properties .... )
+	
+messages.properties
+good.morning.message=Good Morning
+
+messages_fr.properties
+good.morning.message=Bonjour
+
+
+
+
+#3 - configure ResourceBundleMessageSource
+Edit main Application class
+
+@Bean
+public ResourceBundleMessageSource messageSource() {
+	ResourceBundleMessageSource ms = new ResourceBundleMessageSource();
+	ms.setBasename("messages");
+	return ms;
+}
+
+
+####Usage
+Autowire MessageSource
+@RequestHeader(value="Accept-language",required=false) Locale locale
+
+messageSource.getMessage("helloworld.message",null , locale)
+
+
+#4 - Edit HelloWorldController
+
+add the following
+
+@Autowired 
+MessageSource messageSource;
+
+@GetMapping(path="/hello-world-internationalized")
+public String helloWorldInternationalized(
+		@RequestHeader(name="Accept-Language" , required = false) Locale locale) {
+	return messageSource.getMessage("good.morning.message", null, locale);
+}	
+
+Run the Application now
+
+GET 	localhost:8080/hello-world-internationalized
+
+Header : 
+	Accept-Language	:	FR
+
+
+-------------------------------
+Approch 2 : To configure Internationalization
+
+Step - 15 Simplifying Internationalization for RESTful services
+-------------------------------
+
+#1 - No need to use @RequestHeader annotation
+
+@GetMapping(path="/hello-world-internationalized")
+public String helloWorldInternationalized() {
+	return messageSource.getMessage("good.morning.message", null, LocaleContextHolder.getLocale());
+}
+
+
+
+#2 - We can change the LocaleResolver to AcceptHeader
+
+@Bean
+public LocaleResolver localeResolver() {
+	AcceptHeaderLocaleResolver localeResolver  = new AcceptHeaderLocaleResolver();
+	localeResolver.setDefaultLocale(Locale.US);
+	return localeResolver;
+}
+
+
+Run it
+
+
+#3 - we can configure ResourceBundleMessageSource in the properties file  using the following properties
+spring.messages.basename=messages
+
+
+-------------------------------
+Step - 16 Content Negotiation - implementing XML support
+-------------------------------
+
+By default , Spring boot application with web mvc support json input & json output
+Accept 	application/json
+
+
+To support xml input & output
+Accept	application/xml
+
+<dependency>
+    <groupId>com.fasterxml.jackson.dataformat</groupId>
+    <artifactId>jackson-dataformat-xml</artifactId>
+</dependency>
+
+
+
+
+-------------------------------
+Step - 17 Configuring Autogeneration of Swagger Documentation
+-------------------------------
+
+Dependencies : 
+
+<!-- https://mvnrepository.com/artifact/io.springfox/springfox-swagger2 -->
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger2</artifactId>
+    <version>2.9.2</version>
+</dependency>
+
+<!-- https://mvnrepository.com/artifact/io.springfox/springfox-swagger-ui -->
+<dependency>
+    <groupId>io.springfox</groupId>
+    <artifactId>springfox-swagger-ui</artifactId>
+    <version>2.9.2</version>
+</dependency>
+
+
+
+Add the following class
+
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+
+	// Bean - Docket
+	// Swagger 2
+	// All the paths
+	// All the APIS
+	
+	
+	@Bean
+	public Docket api() {
+		return new Docket(DocumentationType.SWAGGER_2);
+	}
+}
+
+http://localhost:8080/v2/api-docs
+http://localhost:8080/swagger-ui.html
+
+
+
+-------------------------------
+Step - 18 Introduction to  Swagger Documentation format
+-------------------------------
+
+
+
+-------------------------------
+Step - 19 Enhancing Swagger Documentation with custom annotation
+-------------------------------
+
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+	public static final Contact DEFAULT_CONTACT = new Contact("Pratap Kumar", "pratap.com", "mail2pratap@gmail.com");
+	public static final ApiInfo DEFAULT_API_INFO = new ApiInfo("Awesome Api Title", "Api Documentation", "1.0",
+			"urn:tos", DEFAULT_CONTACT, "Apache 2.0", "http://www.apache.org/licenses/LICENSE-2.0",
+			new ArrayList<VendorExtension>());
+
+
+	// Bean - Docket
+	// Swagger 2
+	// All the paths
+	// All the APIS
+
+	@Bean
+	public Docket api() {
+		return new Docket(DocumentationType.SWAGGER_2)
+				.apiInfo(DEFAULT_API_INFO)
+				.produces(new HashSet<String>(Arrays.asList("application/json","application/xml")))
+				.consumes(new HashSet<String>(Arrays.asList("application/json","application/xml")));
+	}
+}
+
+
+Edit user.java
+@ApiModel(description = "All Details about the user")
+public class User {
+	private Integer id;
+	
+	@Size(min=2 ,message = "Name should have atlease 2 character" )
+	@ApiModelProperty(notes="name should be atleast 2 character")
+	private String name;
+	
+	@Past
+	@ApiModelProperty(notes="birthdate should be in past")
+	private Date birthDate;
+
+}
+
+
+-------------------------------
+Step - 20 Monitoring API with Spring boot actuator
+-------------------------------
+
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+<dependency>
+	<groupId>org.springframework.data</groupId>
+	<artifactId>spring-data-rest-hal-browser</artifactId>
+</dependency>
+
+
+management.endpoints.web.exposure.include=*
+
+localhost:8080/actuator
+localhost:8080	// will lauch the Hal browser
+
+
+-------------------------------
+Step - 21 Implementing static filtering for Restful service
+-------------------------------
+
+@JsonIgnoreProperties(value = {"field1" , "field2"})
+public class SomeBean {
+	private String field1;
+	private String field2;
+	
+	//@JsonIgnore
+	private String field3;
+
+	//constructor
+	// setter & getter
+}
+
+
+@RestController
+public class FilteringController {
+
+	@GetMapping("/filtering")
+	public SomeBean retrieveSomeBean() {
+		return new SomeBean("value1", "value2" , "value3");
+	}
+	
+	@GetMapping("/filtering-list")
+	public List<SomeBean> retrieveListOfSomeBean(){
+		return Arrays.asList(new SomeBean("value1", "value2" , "value3"),
+				new SomeBean("value12", "value22" , "value33"));
+	}
+}
+
+
+
+
+-------------------------------
+Step - 22 Implementing dynamic filtering for Restful service
+-------------------------------
+
+@JsonFilter( "SomeBeanFilter")
+public class SomeBean {
+	private String field1;
+	private String field2;
+	private String field3;
+	//constructor
+	// setter & getter
+}
+
+
+@RestController
+public class DynamicFilteringController {
+
+	//field1 , field2
+	@GetMapping("/dynamic-filtering")
+	public MappingJacksonValue retrieveSomeBean() {
+		SomeBean someBean = new SomeBean("value1", "value2" , "value3");
+			
+		SimpleBeanPropertyFilter filter = SimpleBeanPropertyFilter.filterOutAllExcept("field1","field2");
+		FilterProvider filters = new SimpleFilterProvider().addFilter("SomeBeanFilter"	, filter);
+		
+		MappingJacksonValue mapping = new MappingJacksonValue(someBean);
+		mapping.setFilters(filters);
+		
+		return mapping;
+	}
+	
+	// field2 , field3
+	@GetMapping("/dynamic-filtering-list")
+	public MappingJacksonValue retrieveListOfSomeBean(){
+		 List<SomeBean> asList = Arrays.asList(new SomeBean("value1", "value2" , "value3"),
+				new SomeBean("value12", "value22" , "value33"));
+		 
+		 SimpleBeanPropertyFilter filter = SimpleBeanPropertyFilter.filterOutAllExcept("field2","field3");
+		FilterProvider filters = new SimpleFilterProvider().addFilter("SomeBeanFilter"	, filter);
+			
+		MappingJacksonValue mapping = new MappingJacksonValue(asList);
+			
+		mapping.setFilters(filters);
+			
+		return mapping;
+	}
+}
+
+-------------------------------
+Step - 23 Versioning Restful services, Basic Approach with URLS
+-------------------------------
+
+####Versioning
+	- Media type versioning ( a.k.a "content negotiation" or "accept header")
+		-GitHub
+	- custom headers versioning
+		-microsoft
+	- URI Versioning
+		Twitter
+	- Parameter versioning
+		Amazon
+	-Factors
+		URI pollution
+		misuse of HTTP Headers
+		caching
+		API Documentation
+	- No Perfect Solution
+
+
+
+public class PersonV1 {
+	private String name;
+	// constructor
+	// setter & getter
+}
+
+public class PersonV2 {
+	private Name name;
+	// constructor
+	// setter & getter
+
+}
+
+public class Name {
+	private String firstName;
+	private String lastName;
+	// constructor
+	// setter & getter
+}
+
+@RestController
+public class PersonVersioningController {
+	@GetMapping("/v1/person")
+	public PersonV1 personV1() {
+		return new PersonV1("pratap kumar");	
+	}
+	@GetMapping("/v2/person")
+	public PersonV2 personV2() {
+		return new PersonV2(new Name("pratap", "kumar"));
+	}
+}
+
+
+-------------------------------
+Step - 24 Versioning Restful services, Header and Content Negotiation
+-------------------------------
+
+@RestController
+public class PersonVersioningController {
+	@GetMapping("/v1/person")
+	public PersonV1 personV1() {
+		return new PersonV1("pratap kumar");	
+	}
+	@GetMapping("/v2/person")
+	public PersonV2 personV2() {
+		return new PersonV2(new Name("pratap", "kumar"));
+	}
+	
+	@GetMapping(path="/person/param",params = "version=1")
+	public PersonV2 paramV1() {
+		return new PersonV1("pratap kumar");
+	}
+	@GetMapping(path ="/person/param" , params="version=2")
+	public PersonV2 paramV2() {
+		return new PersonV2(new Name("pratap", "kumar"));
+	}
+	
+	@GetMapping(path="/person/header",headers = "X-API-VERSION=1")
+	public PersonV1 headerV1() {
+		return new PersonV1("pratap kumar");
+	}
+	@GetMapping(path ="/person/header" , headers = "X-API-VERSION=2")
+	public PersonV2 headerV2() {
+		return new PersonV2(new Name("pratap", "kumar"));
+	}
+	
+	@GetMapping(path="/person/produces",produces = "application/vnd.company.app-v1+json")
+	public PersonV1 producesV1() {
+		return new PersonV1("pratap kumar");
+	}
+	@GetMapping(path ="/person/produces" , produces = "application/vnd.company.app-v2+json")
+	public PersonV2 producesV2() {
+		return new PersonV2(new Name("pratap", "kumar"));
+	}
+}
+
+
+https://www.mnot.net/blog/2011/10/25/web_api_versioning_smackdown
+https://stackoverflow.com/questions/389169/best-practices-for-api-versioning
+https://urthen.github.io/2013/05/09/ways-to-version-your-api/
+
+
+
+-------------------------------
+Step - 25 Implementing basic Authentication with spring security
+-------------------------------
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+
+
+edit application.properties
+spring.security.user.name=username
+spring.security.user.password=password
+
+-------------------------------
+Step - 26 Creating User Entity and some test data
+-------------------------------
+
+User.java
+@Entity
+public class User {
+	@Id
+	@GeneratedValue
+	private Integer id;
+
+	private String name;
+
+	private Date birthDate;
+}
+
+Edit application.properties
+spring.jpa.show-sql=true
+spring.h2.console.enabled=true
+
+
+src/main/resource
+data.sql
+insert into user values(1001, sysdate(), 'jack');
+insert into user values(1002, sysdate(), 'jimi');
+insert into user values(1003, sysdate(), 'sara');
+insert into user values(1004, sysdate(), 'bob');
+insert into user values(1005, sysdate(), 'miller');
+
+http://localhost:8080/h2-console
+
+jdbc url : jdbc:h2:mem:testdb
+
+Note : if you do not see User table, make sure that JDBC URL in lauch screen has value  jdbc:h2:mem:testdb
+
+
+
+-------------------------------
+Step - 27 Updating GET method on UserResource to use JPA
+-------------------------------
+
+UserRepository.java
+public interface UserRepository extends JpaRepository<User, Integer>{
+}
+
+UserJpaResource.java
+
+@RestController
+public class UserJpaResource {
+
+	@Autowired
+	UserRepository userdao;
+
+	@GetMapping("/jpa/users")
+	public List<User> retrieveAllUsers() {
+		return userdao.findAll();
+	}
+
+	@GetMapping("/jpa/users/{id}")
+	public Resource<User> retrieveUser(@PathVariable int id) {
+		Optional<User> user = userdao.findById(id);
+		if (!user.isPresent())
+			throw new UserNotFoundException("Id - 	" + id);
+
+		Resource<User> resource = new Resource<User>(user.get());
+		ControllerLinkBuilder linkTo = ControllerLinkBuilder
+				.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
+		resource.add(linkTo.withRel("all-users"));
+		return resource;
+	}
+
+}
+
+
+-------------------------------
+Step - 28 Updating POST and DELETE method on UserResource to use JPA
+-------------------------------
+
+@DeleteMapping("/jpa/users/{id}")
+public void deleteUser(@PathVariable int id) {
+	userdao.deleteById(id);
+}
+
+@PostMapping("/jpa/users")
+public ResponseEntity<Object> createUserWithCreateStatusAndLocation(@Valid @RequestBody User user) {
+	User savedUser = userdao.save(user);
+	URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+				.buildAndExpand(savedUser.getId())
+				.toUri();
+	return ResponseEntity.created(uri).build();
+}
+
+-------------------------------
+Step - 29 Creating Post Entity and Many to One Relationship with User Entity
+-------------------------------
+
+@Entity
+public class Post {
+
+	@Id
+	@GeneratedValue
+	private Integer id;
+	private String description;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JsonIgnore
+	private User user;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	@Override
+	public String toString() {
+		return "Post [id=" + id + ", description=" + description + "]";
+	}
+
+}
+
+
+@Entity
+public class User {
+	@Id
+	@GeneratedValue
+	private Integer id;
+	
+	@Size(min=2 ,message = "Name should have atlease 2 character" )
+	@ApiModelProperty(notes="name should be atleast 2 character")
+	private String name;
+	
+	@Past
+	@ApiModelProperty(notes="birthdate should be in past")
+	private Date birthDate;
+	
+	@OneToMany(mappedBy = "user")
+	private List<Post>  posts;
+	
+	public User() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public User(Integer id, String name, Date birthDate) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.birthDate = birthDate;
+	}
+	public Integer getId() {
+		return id;
+	}
+	public void setId(Integer id) {
+		this.id = id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public Date getBirthDate() {
+		return birthDate;
+	}
+	public void setBirthDate(Date birthDate) {
+		this.birthDate = birthDate;
+	}
+	public List<Post> getPosts() {
+		return posts;
+	}
+	public void setPosts(List<Post> posts) {
+		this.posts = posts;
+	}
+	
+	
+}
+
+Edit data.sql
+insert into user values(100, sysdate(), 'jack');
+insert into user values(101, sysdate(), 'jimi');
+insert into user values(102, sysdate(), 'sara');
+insert into user values(103, sysdate(), 'bob');
+insert into user values(104, sysdate(), 'miller');
+insert into post vlaues(1001,'My first Post',100);
+insert into post vlaues(1002,'My First Post',102);
+insert into post vlaues(1003,'My Second Post',100);
+
+
+-------------------------------
+Step - 30 Implementing GET Service to retrieve all Posts of a User
+-------------------------------
+
+PostRepository.java
+
+
+@GetMapping("/jpa/users/{userid}/posts")
+public List<Post> retrieveAllUsers(@PathVariable Integer userid ) {
+	Optional<User> userOptional = userdao.findById(userid);
+	if(!userOptional.isPresent()) {
+		throw new UserNotFoundException("id " +userid);
+	}
+	return userOptional.get().getPosts();
+}
+
+
+
+
+-------------------------------
+Step - 31 Implementing POST Service to Create a Post for a User
+-------------------------------
+
+@RestController
+public class UserJpaResource {
+
+	@Autowired
+	UserRepository userdao;
+	
+	@Autowired
+	PostRepository postdao;
+
+	@GetMapping("/jpa/users")
+	public List<User> retrieveAllUsers() {
+		return userdao.findAll();
+	}
+
+	@GetMapping("/jpa/users/{id}")
+	public Resource<User> retrieveUser(@PathVariable int id) {
+		Optional<User> user = userdao.findById(id);
+		if (!user.isPresent())
+			throw new UserNotFoundException("Id - 	" + id);
+
+		Resource<User> resource = new Resource<User>(user.get());
+		ControllerLinkBuilder linkTo = ControllerLinkBuilder
+				.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
+		resource.add(linkTo.withRel("all-users"));
+		return resource;
+	}
+
+	@GetMapping("/jpa/users/{userid}/posts")
+	public List<Post> retrieveAllUsers(@PathVariable Integer userid) {
+		Optional<User> userOptional = userdao.findById(userid);
+		if (!userOptional.isPresent()) {
+			throw new UserNotFoundException("id " + userid);
+		}
+		return userOptional.get().getPosts();
+	}
+
+	@PostMapping("/jpa/users/{userid}/posts")
+	public ResponseEntity<Object> createPost(@PathVariable Integer userid , @RequestBody Post post) {
+		Optional<User> userOptional = userdao.findById(userid);
+		if (!userOptional.isPresent()) {
+			throw new UserNotFoundException("id " + userid);
+		}
+		
+		User user = userOptional.get();
+		post.setUser(user);
+		postdao.save(post);
+		
+		URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{userid}").buildAndExpand(post.getId())
+				.toUri();
+		return ResponseEntity.created(uri).build();
+
+	}
+
+	@DeleteMapping("/jpa/users/{id}")
+	public void deleteUser(@PathVariable int id) {
+		userdao.deleteById(id);
+	}
+
+	@PostMapping("/jpa/users")
+	public ResponseEntity<Object> createUserWithCreateStatusAndLocation(@Valid @RequestBody User user) {
+		User savedUser = userdao.save(user);
+		URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(savedUser.getId())
+				.toUri();
+		return ResponseEntity.created(uri).build();
+
+	}
+
+}
+
+
+-------------------------------
+Step - 32 Richardson Maturity Model 
+-------------------------------
+
+How Restful are you?
+Richardson Maturity model helps to evalute that!
+
+Level 0
+	Exposes SOAP Webservices in REST style
+	http://server/getPosts
+	http://server/deletePosts
+	http://server/doThis
+	http://server/doThat
+
+Level 1
+	Exposes Resources with Proper URI
+	http://server/accounts
+	http://server/accounts/10
+	Note : Improper uses of HTTP Methods
+
+Level 2
+	Level 1 + HTTP Methods
+
+	GET	/accounts
+	POST	/accounts
+	GET	/accounts/1
+	DELETE	/accounts/1
+
+Level 3
+	Level 2 + HATEOAS
+	DATA + Next possible action ( links )
+
+
+-------------------------------
+Step - 33  Restful Webservices Best Practices
+-------------------------------
+
+	- Consumer First
+	- Documentation
+	- Make Best Use of HTTP 
+	- Request Methods
+		GET , POST , PUT , DELETE 
+	- Response status
+		200 	success
+		404	resource not found
+		400	bad request
+		201	created
+		401	unauthorized
+		403	forbidden
+		500	server error
+	- No secure info in URI
+	- Use plurals	
+		prefer /users over /user
+		prefer /users/1 over /user/1
+
+	- Use nouns for resources
+	- for Exceptiontional scenario
+		Define a consistent approach

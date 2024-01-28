@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd 
+         http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd 
+        http://www.springframework.org/schema/tx
+        https://www.springframework.org/schema/tx/spring-tx.xsd 
+        http://www.springframework.org/schema/aop
+        https://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<context:component-scan
+		base-package="com.pratap" />
+
+	<bean id="dataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName"
+			value="oracle.jdbc.driver.OracleDriver" />
+		<property name="url"
+			value="jdbc:oracle:thin:@localhost:1521:orcl" />
+		<property name="username" value="system" />
+		<property name="password" value="pratap" />
+	</bean>
+
+	<bean  class="org.springframework.jdbc.core.JdbcTemplate">
+		<constructor-arg  ref="dataSource"></constructor-arg>
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<constructor-arg ref="dataSource" />
+	</bean>
+
+	<tx:advice id="txadvice"
+		transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="*" isolation="DEFAULT"
+				propagation="REQUIRED" read-only="false" timeout="-1" />
+		</tx:attributes>
+	</tx:advice>
+
+	<aop:config>
+		<aop:pointcut id="accServiceOperation"
+			expression="execution(* com.pratap.service.AccountServiceImpl.*(..))" />
+		<aop:advisor advice-ref="txadvice" pointcut-ref="accServiceOperation" />
+	</aop:config>
+
+</beans>

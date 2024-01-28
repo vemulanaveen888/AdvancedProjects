@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<GetCourseDetailsResponse
+	xmlns="http://pratap.com/courses"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://pratap.com/courses coursedetails.xsd">
+	<CourseDetails>
+		<id>123</id>
+		<name>spring</name>
+		<description>Java Framework</description>
+	</CourseDetails>
+</GetCourseDetailsResponse>

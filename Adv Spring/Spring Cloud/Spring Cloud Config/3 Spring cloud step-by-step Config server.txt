@@ -1,0 +1,572 @@
+//////////
+Example 1
+******************************************
+Config Server Using Local filesystem
+******************************************
+
+--------------------------------------------
+Step  1 : setting up config-server-file-backend
+--------------------------------------------
+new > spring boot starter project >
+ 
+	groupid : 		com.pratap
+	artifact id :	 	config-server-file-backend
+
+
+	Dependencies : Web, Devtools, Actuator, Config Server
+
+
+application.properties
+
+	spring.application.name=limits-service
+	server.port=8080
+
+
+--------------------------------------------
+Step  2 : Enable Config Server 
+--------------------------------------------
+To embed the config server we need to use @EnableConfigServer on our spring boot main class.
+
+
+
+--------------------------------------------
+Step  3 : Setting up applicaiton.properties
+--------------------------------------------
+
+
+By default Spring Cloud Config uses a Git backend. A backend is where config properties are stored.	
+
+
+To use File System Backend we need to specify followings in application.properties on the Cloud Config Server side:
+
+spring.profiles.active=native
+spring.cloud.config.server.native.searchLocations=<configFileLocations>
+Where configFileLocations can be of classpath (using classpath:/ prefix) or locations on file system (using file:// prefix). If we don't specify this property then Spring Application default classpath are searched.
+
+
+application.properties
+----------------------
+server.port=7777
+spring.profiles.active=native
+spring.cloud.config.server.native.searchLocations=file:///E:/app-config
+
+
+
+--------------------------------------------
+Step  4 : Create application configuration file 
+--------------------------------------------
+
+E:\app-config>dir /B
+test-dev.properties
+test-prod.properties
+test2-dev.properties
+test2-prod.properties
+
+
+
+test-dev.properties:
+test.greeting=Hi developer!
+
+test2-dev.properties:
+test.msg=How is your coding going?
+
+test-prod.properties
+test.greeting=Hi there!
+
+test2-prod.properties
+test.msg=How are you doing?
+
+Run the Config Server applicaiton
+
+--------------------------------------------
+Step  5 : Create Cloud Config Client 
+--------------------------------------------
+
+	Dependencies : config-client
+
+	
+
+bootstrap.properties
+--------------------
+spring.cloud.config.uri=http://localhost:7777
+spring.application.name=test
+spring.profiles.active=dev
+
+
+
+@Component
+public class ClientBean {
+  @Value("${test.greeting}")
+  private String msg1;
+
+  @Value("${test.msg}")
+  private String msg2;
+
+  @PostConstruct
+  public void postConstruct() {
+      System.out.println(msg1);
+      System.out.println(msg2);
+  }
+}
+
+
+@SpringBootApplication
+public class ConfigClientApplication {
+  public static void main(String[] args) {
+      SpringApplication.run(ConfigClientApplication.class, args);
+  }
+}
+
+Run the client application
+
+
+
+
+
+
+
+
+//////////
+Example 2
+******************************************
+Config Server Using Central Github Repository
+******************************************
+
+--------------------------------------------
+Step  1 : Create the Config server application
+--------------------------------------------
+new > spring boot starter project >
+	groupid : com.pratap
+	artifactid : config-server
+
+	Dependencies : Devtools , Actuator , Config Server , Eureka Discovery
+
+
+@SpringBootApplication
+@EnableConfigServer
+public class ConfigServerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ConfigServerApplication.class, args);
+	}
+
+}
+
+--------------------------------------------
+Step  2 : Git hub setup
+--------------------------------------------
+
+ 
+https://github.com/Pratap-Samal/scf-config-repository
+
+
+Enable git repository view on sts
+window > show view > others > git repositories 
+
+
+clone a git repository > 
+
+	uri : https://github.com/Pratap-Samal/scf-config-repository
+	host : github.com
+	repository path: /Pratap-Samal/scf-config-repository
+
+next > next > finish
+
+
+
+application.properties
+spring.application.name=config-server
+server.port=8888
+spring.cloud.config.server.git.uri=https://github.com/Pratap-Samal/scf-config-repository
+
+
+
+git repositories view > right click on working tree > choose import project
+
+check the files 
+
+
+
+
+
+--------------------------------------------
+Step  3 : Run the config-server application
+--------------------------------------------
+
+check the following URL 
+http://localhost:8888/config-client-app/default
+
+http://localhost:8888/config-client-app/prod
+
+http://localhost:8888/config-client-app.properties
+
+http://localhost:8888/config-client-app.yml
+
+
+--------------------------------------------
+Step  4 : Spring cloud config client
+--------------------------------------------
+
+new > spring boot starter project
+	groupid : com.pratap
+	artifact: config-client-app
+
+	Dependencies : config client , Eureka discovery, actuator , devtools , web
+
+
+--------------------------------------------
+Step  5 : Create the discovery-server application if not available
+--------------------------------------------
+
+Note : Make sure you have the discovery-server application
+
+
+--------------------------------------------
+Step  6 : make some changes in config-server application
+--------------------------------------------
+
+
+
+Add the @EnableDiscoveryClient annotation into config-server application main class
+
+
+edit application.properties file
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+
+
+--------------------------------------------
+Step  6 : make some changes in config-client application
+--------------------------------------------	
+Add @EnableDiscoveryClient annotation into config-client application main class
+
+
+@Component
+@ConfigurationProperties(prefix="some")
+public class ConfigClientAppConfiguration {
+	private String property;
+
+	public String getProperty() {
+		return property;
+	}
+
+	public void setProperty(String property) {
+		this.property = property;
+	}	
+}
+
+
+
+@RestController
+public class ConfigClientController {
+	@Autowired
+	ConfigClientAppConfiguration properties;
+
+	@Value("${some.other.property}")
+	private String someOtherProperty;
+	
+	@RequestMapping("/")
+	public String printConfig() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(properties.getProperty());
+		sb.append("|");
+		sb.append(someOtherProperty);
+		return sb.toString();	
+	}	
+}
+
+create  a new file bootstrap.properties file under src/main/resource
+
+spring.application.name=config-client-app
+spring.cloud.config.discovery.enabled=true
+spring.cloud.config.discovery.service-id=config-server
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+
+
+--------------------------------------------
+Step  7 : Run the application
+--------------------------------------------	
+Run : 
+	- discovery-server app
+	- config-server app
+	- config-client app
+
+
+
+
+
+
+
+//////////
+Example 3
+******************************************
+Config Server Using Local Git Repository
+******************************************
+
+
+--------------------------------------------
+Step  0 : Intro to Limits Microservices and spring cloud config server
+--------------------------------------------
+
+
+--------------------------------------------
+Step  1 : setting up Limits Microservices
+--------------------------------------------
+new > spring boot starter project >
+ 
+	groupid : 		com.pratap
+	artifact id :	 	limits-service
+
+
+	Dependencies : Web, Devtools, Actuator, Config client
+
+
+application.properties
+
+	spring.application.name=limits-service
+	server.port=8080
+
+
+--------------------------------------------
+Step  2 : Creating Hard coded Limits services
+--------------------------------------------
+
+public class LimitConfiguration {
+	int minimum;
+	int maximum;
+
+	// constructor
+	// getters
+}
+
+@RestController
+public class LimitsConfigurationController {
+	@GetMapping("/limits")
+	public LimitConfiguration retrieveLimitsFromConfigurations() {
+		return new LimitConfiguration(1, 1000);
+	}
+}
+
+Run the application
+http://localhost:8080/limits
+
+
+--------------------------------------------
+Step  3 : Enhance Limits services to get Configuration from application.properties
+--------------------------------------------
+
+Edit application.properties
+
+	limits-service.minimum=99
+	limits-service.maximum=999
+
+
+
+- using @Value
+
+@RestController
+public class LimitsConfigurationController {
+	@Value("${limits-service.minimum}")
+	int min;
+	
+	@Value("${limits-service.maximum}")
+	int max;
+	
+	@GetMapping("/limits")
+	public LimitConfiguration retrieveLimitsFromConfigurations() {
+		return new LimitConfiguration(1, 1000);
+	}
+	
+	@GetMapping("/limits-value")
+	public LimitConfiguration retrieveLimitsFromConfigurationsUsingAtValue() {
+		return new LimitConfiguration(min , max);
+	}
+}
+
+------------
+- using ConfigurationProperties
+
+
+@Component
+@ConfigurationProperties("limits-service")
+public class Configuration {
+	private int minimum;
+	private int maximum;
+	
+	// setters and getters
+}
+
+@RestController
+public class LimitsConfigurationController {
+
+	@Autowired
+	Configuration configuration;
+
+	@GetMapping("/limits")
+	public LimitConfiguration retrieveLimitsFromConfigurations() {
+		return new LimitConfiguration(configuration.getMinimum(), configuration.getMaximum());
+	}
+
+}
+
+
+--------------------------------------------
+Step  4 : Setting up Spring cloud config server
+--------------------------------------------
+new > spring boot starter proejct > 
+	groupid : 		com.pratap
+	artifact id :	 	spring-cloud-config-server
+
+
+	Dependencies : Config Server, Devtools , Actuator
+
+
+application.properties
+	spring.application.name=spring-cloud-config-server
+	server.port=8888
+
+
+
+@SpringBootApplication
+@EnableConfigServer // edit this 
+public class SpringCloudConfigServerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringCloudConfigServerApplication.class, args);
+	}
+
+}
+
+--------------------------------------------
+Step  5 : Instailling Git
+--------------------------------------------
+https://git-scm.com/
+
+
+--------------------------------------------
+Step  6 : Creating Local Git Repository
+--------------------------------------------
+> mkdir git-localconfig-repo
+> cd git-localconfig-repo
+
+Initialize git repository
+>git init
+
+Link source
+right click on the project > build path > link source > select git-localconfig-repo folder
+
+create new text file in git-localconfig-repo:
+right click on git-localconfig-repo folder in the project > 
+	> file 
+	> limits-service.properties
+
+limits-service.minimum=8
+limits-service.maximum=888
+
+Lets add this file into the local repository
+> git add -A
+> git commit -m "first commit"
+
+
+--------------------------------------------
+Step  7 : Connect spring cloud config server  to Local git repository
+--------------------------------------------
+copy the location of git-localconfig-repo folder
+
+Edit application.properties
+spring.cloud.config.server.git.uri=file:///E:/temp/git-localconfig-repo
+
+
+
+--------------------------------------------
+Step  8 : Run the spring-cloud-config-server
+--------------------------------------------
+
+http://localhost:8888/limits-service/default
+http://localhost:8888/limits-service.properties
+http://localhost:8888/limits-service.yml
+
+
+
+--------------------------------------------
+Step  9 : Configuration for multiple environment in Git repository
+--------------------------------------------
+create a new file:
+limits-service-dev.properties
+	limits-service.minimum=2
+	limits-service.maximum=222
+
+
+create a new file:
+limits-service-qa.properties
+	limits-service.minimum=1
+	limits-service.maximum=111
+
+Lets add this file into the local repository
+> git add -A
+> git status
+> git commit -m "first commit"
+
+
+http://localhost:8888/limits-service/default
+http://localhost:8888/limits-service/dev
+http://localhost:8888/limits-service/qa
+
+--------------------------------------------
+Step  10 : Connect Limits service to spring cloud config server
+--------------------------------------------
+in Limits-service
+
+create a new file under src/main/resource
+	bootstrap.properties
+
+add the following in bootstrap.properties
+spring.cloud.config.uri=http://localhost:8888
+
+--------------------------------------------
+Step  10 : Configuring Profiles for Limits Service
+--------------------------------------------
+
+edit the following in bootstrap.properties
+spring.profiles.active=dev
+
+
+--------------------------------------------
+Step  11 : A review of Spring Cloud config server
+--------------------------------------------
+
+
+--------------------------------------------
+Step  12 : Updating Configuration at Runtime
+--------------------------------------------	
+With this you can Refresh you @ConfigurationProperties at Runtime.
+Update the Logging Level
+Without Restarting the Application
+
+Step 1  ( Configuration changes )
+	Edit & Save Configuration file(s)
+	Commit and / or Push Changes to VCS
+
+	> Git  add .
+	> Git commit  -m “made some configuration change”
+	> Git push origin head
+
+
+
+edit application.properties client app (limits-service)
+management.endpoints.web.exposure.include=*
+
+
+Use postman
+POST http://localhost:8080/actuator/refresh
+
+
+
+
+
+
+
+
+
+
+
+

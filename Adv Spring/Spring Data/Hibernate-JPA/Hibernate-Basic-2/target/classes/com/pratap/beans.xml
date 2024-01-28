@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+	
+	<bean id="lsfb" class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+
+		<property name="hibernateProperties">
+			<value>
+				hibernate.dialect=org.hibernate.dialect.Oracle12cDialect
+				hibernate.show_sql=true
+				hibernate.hbm2ddl.auto=create
+			</value>
+		</property>
+		<property name="mappingResources">
+			<list>
+				<value>com/pratap/Event.hbm.xml</value>
+			</list>
+		</property>
+		
+		<property name="dataSource" ref="ds"/>
+	</bean>
+	
+	<bean  id="ds"  class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="oracle.jdbc.driver.OracleDriver"/>
+		<property name="url" value="jdbc:oracle:thin:@localhost:1521:orcl"/>
+		<property name="username" value="system"/>
+		<property name="password" value="pratap"/>
+	</bean>
+	
+	
+	<context:component-scan base-package="com.pratap"/>
+
+</beans>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd 
+        http://www.springframework.org/schema/security
+        https://www.springframework.org/schema/security/spring-security.xsd">
+
+
+	<security:http>
+		<security:intercept-url pattern="/login**" access="isAnonymous()" />
+		<security:intercept-url pattern="/**" access="isAuthenticated()" />
+
+		<security:form-login 
+		    login-page="/login" 
+		    default-target-url="/welcome" 
+			authentication-failure-url="/login?error" 
+			username-parameter="username"
+			password-parameter="password" />
+			
+		<security:remember-me   
+		   services-alias="rms"
+		   key="rem-me-key" 
+		   remember-me-parameter="remember-me-param"
+		   remember-me-cookie="my-remember-me"
+		   token-validity-seconds="86400"  
+		   user-service-ref="us"
+		   />
+		
+		<security:logout logout-success-url="/login?logout" />
+		
+	</security:http>
+
+	<bean id="bcryptencoder"
+		class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"></bean>
+
+	<security:authentication-manager
+		id="authManager">
+		<security:authentication-provider>
+
+			<security:password-encoder
+				ref="bcryptencoder" />
+			<security:user-service id="us"
+				properties="users.properties">
+			</security:user-service>
+		</security:authentication-provider>
+	</security:authentication-manager>
+</beans>

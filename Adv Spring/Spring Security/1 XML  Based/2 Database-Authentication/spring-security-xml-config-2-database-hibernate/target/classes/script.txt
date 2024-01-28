@@ -1,0 +1,12 @@
+create table userdetails(
+	id number(5),
+	name varchar2(20),
+	email varchar2(50),
+	password varchar2(250),
+	address varchar2(50)
+)
+
+INSERT INTO
+ userdetails(id, address,email,name,password)
+VALUES
+(101, 'Bangalore, Karnataka','johndoe@gmail.com','John Doe','$2a$10$KmhEslWpL.QHzeB1E3BmLeirdNxAozKaNa00LgZGA6.6m378bhrZC');

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd 
+        http://www.springframework.org/schema/security
+        https://www.springframework.org/schema/security/spring-security.xsd">
+
+
+	<!-- This tag will create an Apache Directory server ( embedded ) -->
+	<security:ldap-server id="ldapServerBeanId"
+		root="dc=springframework,dc=org" ldif="classpath:users.ldif" />
+
+
+	
+	
+	<security:http>
+		<security:intercept-url pattern="/**"
+			access="hasRole('USER')" />
+		<security:form-login />
+		<security:logout />
+	</security:http>
+
+
+	<bean id="passwordEncoder"
+		class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"></bean>
+
+
+	<!-- <security:authentication-manager> <security:authentication-provider> 
+		<security:ldap-user-service user-search-filter="(uid={0})" user-search-base="ou=people" 
+		group-search-base="ou=groups"/> <security:password-encoder ref="passwordEncoder"/> 
+		</security:authentication-provider> </security:authentication-manager> -->
+
+	<security:authentication-manager>
+		<security:ldap-authentication-provider
+			user-dn-pattern="uid={0},ou=people" group-search-base="ou=groups">
+			<security:password-compare hash="bcrypt"
+				password-attribute="userPassword" />
+		</security:ldap-authentication-provider>
+	</security:authentication-manager>
+
+</beans>

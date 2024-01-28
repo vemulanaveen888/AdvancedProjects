@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<accounts>
+	<account>
+		<accid>1</accid>
+		<name>jack</name>
+		<balance>2000</balance>
+	</account>
+	<account>
+		<accid>2</accid>
+		<name>jones</name>
+		<balance>3000</balance>
+	</account>
+</accounts>

@@ -1,0 +1,654 @@
+*****************************
+Section #1 : Spring cloud security
+*****************************
+----------------------------
+Building back-office Toll reporting site
+----------------------------
+Step #1 : Create the project
+----------------------------
+new > spring starter project
+		- spring-cloud-secureui
+		
+Dependencies : web, thymeleaf , cloud security, cloud OAuth2
+
+in pom.xml 
+	comment "cloud security" and "cloud oauth2" dependencies for now
+
+
+
+
+----------------------------
+Step #2 : Create a RestController
+----------------------------
+@Controller
+public class ReportController {
+	@RequestMapping("/")
+	public String loadHome(){
+		return "home";
+	}
+}
+
+
+
+----------------------------
+Step #3 : add a template for the home view
+----------------------------
+src/main/resource/templates
+
+home.html
+---------
+
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Pratap's Training: Secure App Home Page</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"></link>	
+</head>
+<body>
+	<div class="row">
+		<div class="col-md-2"></div>
+		<div class="col-md-8">
+			<h1>Pratap's Training: Secure App Home Page</h1>
+    	</div>
+    	<div class="col-md-2"></div>
+	</div>
+
+</body>
+</html>
+
+
+Deploy & run
+------------
+
+
+
+----------------------------
+Step #4 : uncomment the cloud-security & cloud-Oauth2
+----------------------------
+
+
+Deploy & run
+------------
+
+
+----------------------------
+Step #5 : Enable Single Sign On ( SSO )
+----------------------------
+
+add @EnableOAuth2Sso in the Main class
+
+
+----------------------------
+Step #6 : add application.yml
+----------------------------
+delete the applicaiton.properties
+
+and add the applicaiton.yml under src/main/resources
+
+
+security:
+  oauth2:
+    client:
+      clientId: bd1c0a783ccdd1c9b9e4
+      clientSecret: 1a9030fbca47a5b2c28e92f19050bb77824b5ad1
+      accessTokenUri: https://github.com/login/oauth/access_token
+      userAuthorizationUri: https://github.com/login/oauth/authorize
+      clientAuthenticationScheme: form
+    resource:
+      userInfoUri: https://api.github.com/user
+      preferTokenInfo: false
+
+
+Deploy & run the application
+----------------------------
+
+
+
+
+----------------------------
+Step #7 : Customizing security configuration
+----------------------------
+Lets configure the "/" and "/login" to be access annonymously
+
+@Controller
+@EnableOAuth2Sso
+public class ReportController extends WebSecurityConfigurerAdapter {
+	@RequestMapping("/")
+	public String loadHome() {
+		return "home";
+	}
+
+	@Override
+	protected void configure(HttpSecurity http) throws Exception {
+		http.authorizeRequests().antMatchers("/", "/login**").permitAll().anyRequest().authenticated();
+	}	
+}
+
+
+
+Deploy & run the application
+----------------------------
+
+
+
+
+
+*****************************
+Section # 2 : Creating a Resource Server and Routing Tokens to Downstream Services
+*****************************
+----------------------------
+Step #1 : create a new project
+----------------------------
+
+new > spring starter project
+	> spring-cloud-secureservice
+
+Dependencies: web , cloud-security , cloud-OAuth2
+
+----------------------------
+Step #2 : 
+----------------------------
+
+@SpringBootApplication
+public class SpringCloudSecureserviceApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringCloudSecureserviceApplication.class, args);
+	}
+}
+
+-----------------------
+Create TollUsage class
+-----------------------
+public class TollUsage {
+		
+		public String Id;
+		public String stationId;
+		public String licensePlate;
+		public String timestamp;
+		
+		public TollUsage() {}
+		
+		public TollUsage(String id, String stationid, String licenseplate, String timestamp){
+			this.Id = id;
+			this.stationId = stationid;
+			this.licensePlate = licenseplate;
+			this.timestamp = timestamp;
+		}
+		
+		
+	}
+
+
+----------------------------
+Step #3 : add  an endpoint  on the restcontroller "/tolldata"
+----------------------------
+	
+@RestController
+public class TollResource {
+	@RequestMapping("/tolldata")
+	public ArrayList<TollUsage> getTollData() {
+
+		TollUsage instance1 = new TollUsage("200", "station150", "B65GT1W", "2016-09-30T06:31:22");
+		TollUsage instance2 = new TollUsage("201", "station119", "AHY673B", "2016-09-30T06:32:50");
+		TollUsage instance3 = new TollUsage("202", "station150", "ZN2GP0", "2016-09-30T06:37:01");
+		ArrayList<TollUsage> tolls = new ArrayList<TollUsage>();
+		tolls.add(instance1);
+		tolls.add(instance2);
+		tolls.add(instance3);
+		return tolls;
+	}
+}
+
+	
+
+----------------------------
+Step #4 : update application.properties
+----------------------------
+
+server.port=9001
+server.servlet.context-path=/services
+
+
+----------------------------
+Step #5 : Deploy and test "/tolldata" endpoint
+----------------------------
+
+use postman
+GET 	localhost:9001/services/tolldata
+
+use basic auth
+	username : user	
+	password : generated password
+
+
+
+----------------------------
+Step #6 : Enable resource server
+----------------------------
+Edit the main class with @EnableResourceServer annotation
+
+
+Edit the  applicaiton.properties
+--------------------------------
+security.oauth2.resource.user-info-uri=https://api.github.com/user
+
+
+
+Test again
+-----------
+use postman
+GET 	localhost:9001/services/tolldata
+
+use basic auth
+	username : user
+	password : generated password
+
+Note  : we will receive an error , Full Authentication required to access this resource
+
+
+
+
+****************
+back to spring-cloud-secureui application
+****************
+
+steps
+-----
+
+Edit ReportController 
+---------------------
+@Autowired
+private OAuth2ClientContext clientContext;
+
+
+Edit RepotController
+---------------------
+	@RequestMapping("/reports")
+	public String loadReports(Model model){
+	  
+	 	OAuth2AccessToken t = clientContext.getAccessToken();
+	 	System.out.println("Token: " + t.getValue());
+		return "reports";
+	}
+	
+
+
+creates reports.html
+--------------------
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Pratap Training: Secure App Reports Page</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"></link>	
+</head>
+<body>
+<div class="row">
+	<div class="col-md-2"></div>
+	<div class="col-md-8">
+			<h1>Pratap's Training: Secure App Reports Page</h1>
+	
+	</div>
+    	<div class="col-md-2"></div>
+	</div>
+</body>
+</html>
+
+
+Run the application  ( secureui )
+visit : http://localhost:8080/reports
+
+
+find the access token on the console
+
+
+
+Now try to access the protected resource localhost:9001/services/tolldata  using postman
+
+add an Authorization header
+
+Authorization 	Bearer f5d848e4d5ad014b184e519e3300c1e203a634ae
+
+
+
+
+
+
+Add Configuration class
+-------------------------
+@Configuration
+public class ServiceConfig {
+	
+	@Bean
+    public OAuth2RestTemplate oauth2RestTemplate(OAuth2ProtectedResourceDetails resource, OAuth2ClientContext context) {
+        return new OAuth2RestTemplate(resource, context);
+    }
+
+}
+
+
+
+
+Edit ReportsController
+---------------------
+	@Autowired
+	private OAuth2RestTemplate oauth2RestTemplate;
+
+
+	@RequestMapping("/reports")
+	public String loadReports(Model model) {
+
+		OAuth2AccessToken t = clientContext.getAccessToken();
+		System.out.println("Token: " + t.getValue());
+
+		ResponseEntity<ArrayList<TollUsage>> tolls = oauth2RestTemplate.exchange(
+				"http://localhost:9001/services/tolldata", HttpMethod.GET, null,
+				new ParameterizedTypeReference<ArrayList<TollUsage>>() {
+				});
+
+		model.addAttribute("tolls", tolls.getBody());
+
+		return "reports";
+
+	}
+
+
+Edit reports.html
+------------------
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>Prataps Training: Secure App Reports Page</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+	integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+	crossorigin="anonymous"></link>
+</head>
+<body>
+	<div class="row">
+		<div class="col-md-2"></div>
+		<div class="col-md-8">
+			<h1>Prataps Training: Secure App Reports Page</h1>
+
+			<table class="table table-striped">
+				<tr>
+					<th>Station ID</th>
+					<th>Plate</th>
+					<th>Timestamp</th>
+				</tr>
+				<tr th:each="toll : ${tolls}">
+					<td th:text="${toll.stationId}"></td>
+					<td th:text="${toll.licensePlate}"></td>
+					<td th:text="${toll.timestamp}"></td>
+				</tr>
+			</table>
+
+
+		</div>
+		<div class="col-md-2"></div>
+	</div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+*****************************
+Section #3 : Creating Authz Server
+*****************************
+
+----------------------------
+Step #1 : create a new project
+----------------------------
+
+new > spring starter project
+	> spring-cloud-secureauthserver
+
+Dependencies: web , cloud-security , cloud-OAuth2
+
+
+
+----------------------------
+Step #2 : Enable Authorization Server
+----------------------------
+
+edit main class 
+
+@EnableAuthorizationServer
+
+
+
+----------------------------
+Step #3 : update application.properties
+----------------------------
+
+
+server.port=9000
+server.servlet.context-path=/services
+
+spring.security.user.name=pratap
+spring.security.user.password=kumar
+spring.security.user.roles=USER
+
+
+security.oauth2.client.client-id=pratapapp
+security.oauth2.client.client-secret=pratapappsecret
+security.oauth2.client.authorized-grant-types=authorization_code,refresh_token,password,client_credentials
+security.oauth2.client.scope=toll_read,toll_report
+
+
+
+----------------------------
+Step #4 : Run & Test the token endpoint
+----------------------------
+
+on postman
+
+POST	localhost:9000/services/oauth/token
+
+Authorization ( Basic Auth )
+	username	: pratapapp
+	password	: pratapappsecret
+
+Body  ( x-www-form-urlencoded )
+	grant_type	: password
+	client_id	: pratapapp
+	username	: pratap
+	password	: kumar
+
+
+
+
+----------------------------
+Step #5 : Move the user details from application properties to an inmemory configuration
+----------------------------
+@Configuration
+public class ServiceConfig extends GlobalAuthenticationConfigurerAdapter {
+	@Override
+	public void init(AuthenticationManagerBuilder auth) throws Exception {
+		auth.inMemoryAuthentication()
+		.withUser("pratap").password("{noop}pratapspassword").roles("USER").and()
+		.withUser("prasanth").password("{noop}prasanthspassword").roles("USER","ADMIN");
+	}
+}
+
+
+
+
+----------------------------
+Step #6 : Run & Test the token endpoint
+----------------------------
+
+on postman
+
+POST	localhost:9000/services/oauth/token
+
+Authorization ( Basic Auth )
+	username	: pratapapp
+	password	: pratapappsecret
+
+Body  ( x-www-form-urlencoded )
+	grant_type	: password
+	client_id	: pratapapp
+	username	: pratap
+	password	: pratapspassword
+
+
+
+
+----------------------------
+Step #7 : Lets turn our AuthServer to a ResourceServer also
+----------------------------
+
+Add @EnableResourceServer annotation to the main class of "secureauthserver"
+
+
+@SpringBootApplication
+@EnableAuthorizationServer
+@EnableResourceServer
+@RestController
+public class SpringCloudSecureauthserverApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringCloudSecureauthserverApplication.class, args);
+	}
+	
+	// We need a  way to authenticate the user, that comes in from another service
+	@RequestMapping("/user")
+	public Principal user(Principal user) {
+		return user;
+	}
+}
+
+
+
+----------------------------
+Step #7 : Lets change our Resource Server ( secureservice ) to use our Auth Server ( custom )
+----------------------------
+
+edit the application.properties of secureservice
+
+
+#security.oauth2.resource.user-info-uri=https://api.github.com/user
+security.oauth2.resource.user-info-uri=http://localhost:9000/services/user
+
+
+
+----------------------------
+Step #7 : Run application
+----------------------------
+
+run secureauthserver
+run secureservice
+
+
+
+on postman
+
+POST	localhost:9000/services/oauth/token
+
+Authorization ( Basic Auth )
+	username	: pratapapp
+	password	: pratapappsecret
+
+Body  ( x-www-form-urlencoded )
+	grant_type	: password
+	client_id	: pratapapp
+	username	: pratap
+	password	: pratapspassword
+
+
+
+copy the access token
+----
+open another tab on postman
+
+Now try to access the protected resource localhost:9001/services/tolldata  using postman
+
+GET localhost:9001/services/tolldata
+
+add an Authorization header
+
+Authorization 	Bearer f5d848e4d5ad014b184e519e3300c1e203a634ae
+
+
+
+
+*****************************
+Section #4 : Createing app that use Resource Owner Password Credential
+*****************************
+
+----------------------------
+Step #1 : create a new project
+----------------------------
+
+new > spring starter project
+	> spring-cloud-securecli
+
+	Dependencies: cloud-security , cloud-OAuth2
+
+
+
+----------------------------
+Step #1 : main class
+----------------------------
+@SpringBootApplication
+public class SpringCloudSecurecliApplication implements CommandLineRunner{
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringCloudSecurecliApplication.class, args);
+	}
+
+	@Override
+	public void run(String... arg0) throws Exception {
+
+		System.out.println("cron job started");
+
+		ResourceOwnerPasswordResourceDetails resourceDetails = new ResourceOwnerPasswordResourceDetails();
+		resourceDetails.setClientAuthenticationScheme(AuthenticationScheme.header);
+		resourceDetails.setAccessTokenUri("http://localhost:9000/services/oauth/token");
+
+		// must be a valid scope or get an error; if empty, get all scopes (default);
+		// better to ask for one
+		resourceDetails.setScope(Arrays.asList("toll_read"));
+
+		// must be valid client id or get an error
+		resourceDetails.setClientId("pratapapp");
+		resourceDetails.setClientSecret("pratapappsecret");
+
+		
+		resourceDetails.setUsername("pratap");
+		resourceDetails.setPassword("pratapspassword");
+
+		OAuth2RestTemplate template = new OAuth2RestTemplate(resourceDetails);
+		// could also get scopes: template.getAccessToken().getScope()
+		String token = template.getAccessToken().toString();// .getValue();
+
+		System.out.println("Token: " + token);
+
+		String s = template.getForObject("http://localhost:9001/services/tolldata", String.class);
+
+		System.out.println("Result: " + s);
+	}
+
+}
+
+
+https://www.baeldung.com/spring-security-oauth-dynamic-client-registration
+
+
+*****************************
+Section #5 : Adding Access Rules
+*****************************
+

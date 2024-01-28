@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<GetCourseDetailsRequest
+	xmlns="http://pratap.com/courses"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://pratap.com/courses coursedetails.xsd">
+	
+	<id>123</id>
+		
+</GetCourseDetailsRequest>

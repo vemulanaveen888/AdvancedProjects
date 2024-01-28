@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd 
+        http://www.springframework.org/schema/security
+        https://www.springframework.org/schema/security/spring-security.xsd">
+
+
+	<bean id="digestFilter"
+		class="org.springframework.security.web.authentication.www.DigestAuthenticationFilter">
+		<property name="userDetailsService" ref="userService" />
+		<property name="authenticationEntryPoint"
+			ref="digestEntryPoint" />
+	</bean>
+	
+	<bean id="digestEntryPoint"
+		class="org.springframework.security.web.authentication.www.DigestAuthenticationEntryPoint">
+		<property name="realmName"
+			value="Contacts Realm via Digest Authentication" />
+		<property name="key" value="mysecurekey" />
+
+		<property name="nonceValiditySeconds" value="10" />
+	</bean>
+
+	<security:http use-expressions="true"
+		entry-point-ref="digestEntryPoint">
+		<security:intercept-url pattern="/**"
+			access="isAuthenticated()" />
+		<security:custom-filter ref="digestFilter"
+			after="BASIC_AUTH_FILTER" />
+	</security:http>
+
+	<bean id="encoder" class="org.springframework.security.crypto.password.NoOpPasswordEncoder"></bean>
+
+	<security:authentication-manager>
+		<security:authentication-provider>
+			<security:user-service id="userService">
+				<security:user name="jimi"
+					password="jimispassword" authorities="ROLE_USER, ROLE_ADMIN" />
+				<security:user name="bob"
+					password="bobspassword" authorities="ROLE_USER" />
+			</security:user-service>
+			<security:password-encoder ref="encoder"/>
+		</security:authentication-provider>
+	</security:authentication-manager>
+
+</beans>
