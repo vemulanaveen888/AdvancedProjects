@@ -25,6 +25,7 @@ public class AppConfig {
 	}
 	
 	@Bean
+	// @bean
 	public DataSource ds() {
 		DriverManagerDataSource ds = new DriverManagerDataSource();
 		ds.setDriverClassName("oracle.jdbc.driver.OracleDriver");
